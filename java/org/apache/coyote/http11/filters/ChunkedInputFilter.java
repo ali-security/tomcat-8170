@@ -30,7 +30,6 @@ import org.apache.coyote.http11.Constants;
 import org.apache.coyote.http11.InputFilter;
 import org.apache.tomcat.util.buf.ByteChunk;
 import org.apache.tomcat.util.buf.HexUtils;
-import org.apache.tomcat.util.http.parser.HttpParser;
 import org.apache.tomcat.util.net.ApplicationBufferHandler;
 import org.apache.tomcat.util.res.StringManager;
 
@@ -445,13 +444,6 @@ public class ChunkedInputFilter implements InputFilter, ApplicationBufferHandler
 
     private boolean parseHeader() throws IOException {
 
-        /*
-         * Implementation note: Any changes to this method probably need to be echoed in
-         * Http11InputBuffer.parseHeader(). Why not use a common implementation? In short, this code uses blocking
-         * reads whereas Http11InputBuffer using non-blocking reads. The code is just different enough that a common
-         * implementation wasn't viewed as practical.
-         */
-
         Map<String,String> headers = request.getTrailerFields();
 
         byte chr = 0;
@@ -498,9 +490,6 @@ public class ChunkedInputFilter implements InputFilter, ApplicationBufferHandler
 
             if (chr == Constants.COLON) {
                 colon = true;
-            } else if (!HttpParser.isToken(chr)) {
-                // Non-token characters are illegal in header names
-                throw new IOException(sm.getString("chunkedInputFilter.invalidTrailerHeaderName"));
             } else {
                 trailingHeaders.append(chr);
             }
@@ -562,9 +551,7 @@ public class ChunkedInputFilter implements InputFilter, ApplicationBufferHandler
                 if (chr == Constants.CR || chr == Constants.LF) {
                     parseCRLF(true);
                     eol = true;
-                } else if (HttpParser.isControl(chr) && chr != Constants.HT) {
-                    throw new IOException(sm.getString("chunkedInputFilter.invalidTrailerHeaderValue"));
-                } else if (chr == Constants.SP || chr == Constants.HT) {
+                } else if (chr == Constants.SP) {
                     trailingHeaders.append(chr);
                 } else {
                     trailingHeaders.append(chr);
